@@ -1,0 +1,4 @@
+PinchyBot
+=========
+
+PinchyBot for chatango
