@@ -1,13 +1,11 @@
-#!/usr/bin/python2.6
-
-
-#This bot requires the chatango library ch.py
+#!/usr/bin/python2.7
 
 import ch
 import string
 import os
 import random
 import time
+import socket
 import goslate
 import settings
 import sys
@@ -15,25 +13,30 @@ import datetime
 import logging
 import binascii
 from random import randint
-import urllib2
-import json
 from bs4 import BeautifulSoup
 from xml.dom import minidom
+import derpi
+import urllib2
+import yt
+import base64
+
 
 logging.basicConfig(filename='PinchyBot.log',level=logging.DEBUG)
+
+upt = time.time()   #To get the current unix time at execution
 
 
 
 def urlparse(url):    #URL parsing for title. Needs BeauitfulSoup(3rd party)
     soup = BeautifulSoup(urllib2.urlopen(url))
     title = '<b>URL</b>: '+ soup.title.string
-    return title
+    ttitle = title.encode('ascii', 'ignore')
+    return ttitle
 
 def slate(tran, lang):
     gs = goslate.Goslate()
     tr = gs.translate(tran, lang)
-    tr2 = tr.encode('utf8', 'ignore')
-    trf = tr2.decode('utf8', 'scrict')
+    tr2 = tr.encode('utf8', 'strict')
     return tr2
 
 def bestpone():
@@ -53,6 +56,7 @@ def readAdmin(user):
 def roll(sides, count):
     r1 = str([randint(1, sides) for i in range(count)])
     r2 = r1.strip("[]")
+    r2 = r2.strip(",")
     return r2
 
 
@@ -70,59 +74,6 @@ def readRoom(room):
 		else:
 			rstatus = 0
 			return rstatus
-
-#Derpibooru JSON stuff, will add in tag search
-
-def derpi_img_score(num_id):    #Get score
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    score = str(jso['score'])
-    return score
-
-def derpi_img_upvote(num_id):    #Get score
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    upv = jso['upvotes']
-    return upv
-
-def derpi_img_downvote(num_id):    #Get score
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    upd = jso['downvotes']
-    return upd
-
-def derpi_img_uled(num_id): #Who uploaded the image
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    uploader = jso['uploader']
-    return uploader
-
-def derpi_img_tagged(num_id): #Tags on a image
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    tags = jso['tags']
-    return tags
-
-def derpi_img_cmts(num_id):  #Comment count of image
-    url = urllib2.urlopen('https://derpiboo.ru/'+num_id+'.json')
-    jso = json.load(url)
-    cmts = jso['comment_count']
-    return cmts
-
-
-def derpi_total():
-    url = urllib2.urlopen("http://derpiboo.ru/lists.json")
-    jso = json.load(url)
-    dat = jso['total_images']
-    return dat
-    
-
-def derpi_tagsearch(tag):
-    ser1 = str(tag.replace(" ", "+"))
-    url = urllib2.urlopen("https://derpiboo.ru/tags/"+ser1+".json")
-    jso = json.load(url)
-    img_count = jso['tag']['images']
-    return img_count
 
 def dexname(name):
     xmldoc = minidom.parse("dex_xml/"+name+'.xml')
@@ -187,6 +138,12 @@ def uhex(binary):
     nt = binascii.unhexlify('%x' % n)
     return nt
 
+def uptime():
+    upd = time.time() - upt
+    minu = int(upd / 60)   #Minutes
+    hour = upd / 3600 #Hours
+    return minu
+
 class PinchyBot(ch.RoomManager):
 
 
@@ -209,9 +166,9 @@ class PinchyBot(ch.RoomManager):
 
  
 
-  def onDisconnect(self, room):
-
-    print("Disconnected from "+room.name)
+  def onDisconnect(self, room):   #Wouldn't reconnect to the room unless you restart the script
+    ctime = curtime()
+    print("[" + ctime + "] Disconnected from" + room.name)
     
     room.reconnect()
     room.message("Nuu! Pinchy got disconnected")
@@ -236,7 +193,7 @@ class PinchyBot(ch.RoomManager):
 
     
     ctime = curtime()
-    self.safePrint("[" + ctime + "] " + room.name + ": "+user.name + ': ' + message.body)
+    self.safePrint("[" + ctime + "] " + room.name + ": "+user.name + ': ' + message.body) #Will print a timestamp next to the message
 
     if message.body[0] == "!":     #Command prefix
 
@@ -310,7 +267,7 @@ class PinchyBot(ch.RoomManager):
        poni = bestpone()
        room.message(poni)
 
-      elif cmd == 'diabetes':
+      elif cmd == 'diabetes':  #Random diabetes inducing poni image
        dia = random.choice(open('diabetes.txt', 'r').readlines())
        room.message(dia)
 
@@ -320,9 +277,6 @@ class PinchyBot(ch.RoomManager):
       elif cmd == '8ball':
        rand = ['Yes', 'No', 'Outlook so so', 'Absolutely', 'My sources say no', 'Yes definitely', 'Very doubtful', 'Most likely', 'Forget about it', 'Are you kidding?', 'Go for it', 'Not now', 'Looking good', 'Who knows', 'A definite yes', 'You will have to wait', 'Yes, in my due time', 'I have my doubts']
        room.message(random.choice(rand))
-
-      elif cmd == 'url.title':   #Not working atm
-       room.message('The URL parser is not working at the moment')
 
       elif cmd == 'dice':
        try:
@@ -347,14 +301,14 @@ class PinchyBot(ch.RoomManager):
        rand = ['Heads', 'Tails']
        room.message(random.choice(rand))   
 
-      elif cmd == "lusers":
+      elif cmd == "lusers": #lists users in a chat room
        lst = ""
        lst = "<u>Users</u>:"
        for list in room.usernames:
         lst = lst + "<b>"+str(list)+"</b>"+", "
        room.message(lst, True)
 
-      elif cmd == "otp":
+      elif cmd == "otp":  #nowkiss.jpg
        u1 = user.name
        u2 = random.choice(room.usernames)
        if u2 == u1:
@@ -362,17 +316,17 @@ class PinchyBot(ch.RoomManager):
        else:
         room.message(u1+" x "+u2)
 
-      elif cmd == 'calc':
-       try:
-        room.message(str(args))
-       except TypeError:
-        room.message("Wat.")
-       except NameError:
-        room.message("Math only, silly")
-       except SyntaxError:
-        room.message("I can't even understand..")
-       else:
-        room.message("Unsafe command")
+#      elif cmd == 'calc':   #Not really safe to use
+#       try:
+#        room.message(eval(str(args)))
+#       except TypeError:
+#        room.message("Wat.")
+#       except NameError:
+#        room.message("Math only, silly")
+#       except SyntaxError:
+#        room.message("I can't even understand..")
+#       else:
+#        room.message("Unsafe command")
 
       elif cmd == 'shiny':
        shi = str(random.randint(1,8192))
@@ -399,7 +353,7 @@ class PinchyBot(ch.RoomManager):
         except:
          room.message("Wrong")
 
-      elif cmd == "setfont":
+      elif cmd == "setfont":  #Will set the font color, size, and the name color defined in the settings file
        status = readAdmin(user.name)
        if status == 1:
         self.setFontColor(settings.fontcolor)
@@ -408,7 +362,7 @@ class PinchyBot(ch.RoomManager):
         room.message("Done")
 
 
-      elif cmd == "restart":
+      elif cmd == "restart":   #Clones itself somehow
        status = readAdmin(user.name)
        if status == 1:
         room.message("Restarting..")
@@ -434,25 +388,28 @@ class PinchyBot(ch.RoomManager):
        sw = cmd.split(".", 1)[1]
        if sw == "img":
         try:
-         score = derpi_img_score(args)
-         uled = derpi_img_uled(args)
-         tags = derpi_img_tagged(args)
-         cmts = derpi_img_cmts(args)
+         score = derpi.score(args)
+         uled = derpi.uled(args)
+         tags = derpi.tagged(args)
+         cmts = derpi.cmts(args)
          msg = "http://derpiboo.ru/"+args+" | <b>Score</b>: "+score+" | <b>Comment count</b>: "+str(cmts)+" | <b>Uploaded by</b>: "+str(uled)+" | <b>Tags</b>: "+str(tags)
          room.message(msg, True)
-        except:
+        except Exception as e:
          room.message("Image doesn't exist?")
+         print(str(e))
        elif sw == "info":
-         room.message("The !derpi.* command is a function that gets the stats off a derpibooru image using JSON, the available commands are: !derpi.img <image num ID> (Note: !derpi.img needs a moment to grab the stats)")
+         room.message("The !derpi.* command is a function that gets the stats off a derpibooru image using JSON, the available commands are: !derpi.img <image num ID> (Note: !derpi.img needs a moment to grab the stats), !derpi.tag <tag name>")
        elif sw == "tag":
         try:
          s1 = str(args.replace(" ", "+"))
-         tagct = str(derpi_tagsearch(args))
+         s1 = str(s1.replace(":", "-colon-"))
+         tagct = derpi.tagsearch(args)
          searchlink = "http://derpiboo.ru/tags/"+s1
          msg = searchlink+" Tag <b>"+args+"</b> has "+tagct+" images"
          room.message(msg, True)
-        except:
-         room.message("Tag dosen't exist?")
+        except Exception as ee:
+         emsg = "Tag <b>"+args+"</b>? That dosen't exist!"
+         room.message(emsg, True)
 
       elif cmd == "fontsize":
        status = readAdmin(user.name)
@@ -470,12 +427,12 @@ class PinchyBot(ch.RoomManager):
         except:
          room.message("Wrong")
 
-      elif cmd == "reverse":
+      elif cmd == "reverse":  #Reversed text
        rev = str(args[::-1])
        room.message(rev)
 
 
-      elif cmd.startswith("dex."):   #Pokedex
+      elif cmd.startswith("dex."):   #Pokedex, sends both a image of the pokemon and a link to it's stats.
        sw = cmd.split(".", 1)[1]
        if sw == 'name':
         try:
@@ -499,7 +456,7 @@ class PinchyBot(ch.RoomManager):
          room.message("#650-#718")
 
 
-      elif cmd == "quoteadd":
+      elif cmd == "quoteadd":   #Works.. kinda
        status = readAdmin(user.name)
        if status == 1:
         with open('quotes.txt', 'a') as qfile:
@@ -520,40 +477,63 @@ class PinchyBot(ch.RoomManager):
        lct = str(len(open('pinchybot.py').readlines()))
        room.message("It takes "+lct+" lines to run PinchyBot!")
 
+      elif cmd == "uptime":
+       u = str(uptime())
+       room.message("Uptime: "+u+" minutes")
+
+
+
+      elif cmd.startswith("help."):  #Help directive
+       sw = cmd.split(".", 1)[1]
+       hcmd = ['main', 'derpi', 'dex']
+       if sw not in hcmd:
+        room.message("Syntax: !help.directive (Available directives are: main, derpi, dex)")
+       elif sw == 'main':
+        room.message("General commands: !hug, !bestpony, !diabetes, !ping, !8ball, !dice, !google, !flipcoin, !lusers, !otp, !shiny")
+       elif sw == 'derpi':
+        room.message("The !derpi.* command is a function to print stats of an image from derpibooru. (See !derpi.info for available commands)")
+        room.message("URLs matching http://derpiboo.ru/ or http://derpibooru.org/ with the image page will automatically be parsed.")
+       elif sw == 'dex':
+        room.message("National Pokedex. This function links an image of the pokemon, plus the link to its info. The available command is !dex.name <name of pokemon> (Exclude the brackets and do not use caps)")
+
 #start of raw commands
 
     if message.body.startswith("http://derpiboo.ru/"):   #Added in try and except statment to avoid crashing on clash with non-image derpi URLs
      try:
       num = message.body.split("u/", 1)[1]
-      score = derpi_img_score(num)
-      uled = derpi_img_uled(num)
-      tags = derpi_img_tagged(num)
-      cmts = derpi_img_cmts(num)
+      score = derpi.score(num)
+      uled = derpi.uled(num)
+      tags = derpi.tagged(num)
+      cmts = derpi.cmts(num)
       msg = "http://derpiboo.ru/"+num+" | <b>Score</b>: "+score+" | <b>Comment count</b>: "+str(cmts)+" | <b>Uploaded by</b>: "+str(uled)+" | <b>Tags</b>: "+str(tags)
       room.message(msg, True)
-     except:
-      print("Clashed with URL other than image page url, nothing to do")
+     except Exception as e:
+      print("Clashed with URL other than image page url, nothing to do ("+str(e)+")")
 
     if message.body.startswith("http://derpibooru.org/"):
      try:
       num = message.body.split("g/", 1)[1]
-      score = derpi_img_score(num)
-      uled = derpi_img_uled(num)
-      tags = derpi_img_tagged(num)
-      cmts = derpi_img_cmts(num)
+      score = derpi.score(num)
+      uled = derpi.uled(num)
+      tags = derpi.tagged(num)
+      cmts = derpi.cmts(num)
       msg = "http://derpiboo.ru/"+num+" | <b>Score</b>: "+score+" | <b>Comment count</b>: "+str(cmts)+" | <b>Uploaded by</b>: "+str(uled)+" | <b>Tags</b>: "+str(tags)
       room.message(msg, True)
      except:
       print("Clashed with URL other than image page url, nothing to do")
 
     if message.body.startswith("http://"):
-     if message.body.startswith("http://derpibooru.org/"):
+     if message.body.startswith("http://derpibooru.org/"):  #We do not want the bot to parse two things at a time for derpi URLs
       print("Derpi URL")
      elif message.body.startswith("http://derpiboo.ru/"):
       print("Derpi URL")
+     elif message.body.startswith("https://www.youtube.com/"):
+      print("Youtube")
+     elif message.body.startswith("http://www.youtube.com/"):
+      print("Youtube")
      elif message.body.startswith("http://img.pokemondb.net/artwork/"):
       print("Pokedex")
-     elif message.body.endswith(".jpg"):
+     elif message.body.endswith(".jpg"):  #Will ignore image URLs
       print("Image.")
      elif message.body.endswith(".png"):
       print("Image.")
@@ -563,8 +543,9 @@ class PinchyBot(ch.RoomManager):
       try:
        title = urlparse(message.body)
        room.message(title, True)
-      except:
+      except Exception as e:
        room.message("No title for URL?")
+       print str(e)
 
     if message.body.startswith("https://"):   #https to http replacer
      url = message.body.replace("https://", "http://")
@@ -573,14 +554,28 @@ class PinchyBot(ch.RoomManager):
     if message.body.startswith(">>"):
      try:
       num = message.body.split(">>", 1)[1]
-      score = derpi_img_score(num)
-      uled = derpi_img_uled(num)
-      tags = derpi_img_tagged(num)
-      cmts = derpi_img_cmts(num)
+      score = derpi.score(num)
+      uled = derpi.uled(num)
+      tags = derp.tagged(num)
+      cmts = derpi.cmts(num)
       msg = "http://derpiboo.ru/"+num+" | <b>Score</b>: "+score+" | <b>Comment count</b>: "+str(cmts)+" | <b>Uploaded by</b>: "+str(uled)+" | <b>Tags</b>: "+str(tags)
       room.message(msg, True)
      except:
       print("Clashed with URL other than image page url, nothing to do")
+
+    if message.body.startswith("http://www.youtube.com/watch?v="):
+     try:
+      vid = message.body.split("watch?v=", 1)[1]
+      views = yt.views(vid)
+      length = yt.length(vid)
+      length2 = yt.time(length)
+      title = yt.title(vid)
+      likes = yt.rateu(vid)
+      dislikes = yt.rated(vid)
+      msg = "Youtube video: "+title+" | Length: "+length2+" | Views: "+views+" | Likes: "+likes+" | Dislikes: "+dislikes
+      room.message(msg, True)
+     except Exception as e:
+      print str(e)
        
 #end of commands
 
@@ -592,5 +587,5 @@ class PinchyBot(ch.RoomManager):
     pm.message(user, "I am a bot, i will not respond to PMs. If you'd like to talk to my creator, then go here: http://crimsontail0.chatango.com/")
 
 if __name__ == "__main__":  #Multiple rooms seperated by commas(each must be covered in quotation marks)
-  PinchyBot.easy_start(["pinchybott"], settings.nickname, settings.nickpass)
+  PinchyBot.easy_start(settings.rooms, settings.nickname, settings.nickpass)
 
