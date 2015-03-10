@@ -1,7 +1,0 @@
-nickname = ""
-nickpass = ""
-fontcolor = ""     #Colors must be a 3 character hex code. Eg: C90
-namecolor = ""
-fontsize = 
-
-rooms= ['room1', 'room2']  #You can put as many rooms you want in this
