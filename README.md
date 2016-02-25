@@ -1,6 +1,8 @@
 PinchyBot
 =========
 
+### No longer maintained
+
 PinchyBot for chatango
 
 Creator's profile is here: http://chaoticrift.chatango.com/
